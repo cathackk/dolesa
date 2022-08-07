@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert
+    kompose.version: 1.26.1 (HEAD)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: webapi
+  name: webapi
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: webapi
+  strategy: {}
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert
+        kompose.version: 1.26.1 (HEAD)
+      creationTimestamp: null
+      labels:
+        io.kompose.network/network: "true"
+        io.kompose.service: webapi
+    spec:
+      containers:
+        - env:
+            - name: RABBITMQ_EXCHANGE
+              value: exchange
+            - name: RABBITMQ_HOST
+              value: rabbitmq
+            - name: RABBITMQ_PASS
+              value: beyondthemirror
+            - name: RABBITMQ_PORT
+              value: "15672"
+            - name: RABBITMQ_QUEUE
+              value: exchange.q1
+            - name: RABBITMQ_ROUTING_KEY
+              value: exchange.q1
+            - name: RABBITMQ_USER
+              value: whiterabbit
+          image: webapi
+          name: webapi
+          ports:
+            - containerPort: 80
+            - containerPort: 443
+          resources: {}
+      restartPolicy: Always
+status: {}
