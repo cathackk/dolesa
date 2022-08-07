@@ -66,6 +66,11 @@ def receive():
         return "failed to receive from queue", HTTPStatus.INTERNAL_SERVER_ERROR
 
 
+@app.route('/health')
+def health():
+    return {"status": "running"}
+
+
 # TODO: POST /reset
 
 

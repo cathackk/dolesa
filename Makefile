@@ -1,3 +1,3 @@
 install:
-	pip3 install --upgrade pip wheel setuptools
-	pip3 install -r requirements.txt
+	pip3 install --no-cache-dir --upgrade pip wheel setuptools
+	pip3 install --no-cache-dir --upgrade -r requirements.txt

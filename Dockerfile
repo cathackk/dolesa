@@ -1,11 +1,14 @@
-FROM tiangolo/uwsgi-nginx-flask:python3.9
+FROM python:3.9
 
-WORKDIR /app
-COPY Makefile .
+WORKDIR /code
+
 COPY requirements.txt .
+COPY Makefile .
 RUN make install
 
 COPY wait-for-it.sh .
-COPY main.py .
-COPY prestart.sh .
-COPY ./dolesa ./dolesa
+COPY rabbitmq-init.sh .
+COPY entrypoint.sh .
+COPY dolesa ./dolesa
+
+ENTRYPOINT ["./entrypoint.sh"]
