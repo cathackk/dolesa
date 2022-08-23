@@ -82,3 +82,11 @@ def verify_password(username: str, password: str) -> Optional[str]:
 @auth.get_user_roles
 def get_user_roles(user: User) -> list[str]:
     return user.roles
+
+
+if __name__ == '__main__':
+    app.run(
+        debug=False,
+        host='0.0.0.0',
+        port=int(os.environ.get('PORT', 8080)),
+    )
