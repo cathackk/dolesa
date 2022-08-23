@@ -1,4 +1,5 @@
 import hashlib
+import json
 import secrets
 from dataclasses import dataclass
 from typing import Optional
@@ -14,19 +15,28 @@ class User:
     password_digest: str
     roles: list[str]
 
+    @classmethod
+    def from_dict(cls, d: dict) -> 'User':
+        return cls(
+            username=d['username'],
+            password_digest=d.get('password_digest') or digest_password(d['password_plain']),
+            roles=d['roles'],
+        )
 
-# TODO: load users from a file
-USERS = [
-    User('tom', digest_password('hunter2'), ['publisher', 'consumer']),
-    User('guest', digest_password('guest'), ['publisher']),
-    User('raspberry', digest_password('loop'), ['consumer']),
-]
 
-USERS_DICT = {user.username: user for user in USERS}
+def load_users(fn: str = 'users.json') -> dict[str, User]:
+    with open(fn) as f:
+        return {
+            (user := User.from_dict(d)).username: user
+            for d in json.load(f)['users']
+        }
+
+
+USERS = load_users('users.json')
 
 
 def authenticate(username: str, password: str) -> Optional[User]:
-    user = USERS_DICT.get(username)
+    user = USERS.get(username)
     if not user:
         # user not found
         return None

@@ -1,0 +1,14 @@
+{
+    "users": [
+        {
+            "username": "consumer",
+            "password_digest": "(password sha-256 digest here)",
+            "roles": ["consumer"]
+        },
+        {
+            "username": "publisher",
+            "password_plain": "mysecret123",
+            "roles": ["publisher"]
+        }
+    ]
+}
