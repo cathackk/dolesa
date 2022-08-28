@@ -1,0 +1,21 @@
+# TODO
+
+- [ ] proper secrets
+- [x] multiple queues:
+  - [x] queue list
+  - [x] endpoints (`POST /queues/{q}/send`, `POST /queues/{q}/receive`)
+  - [x] list available queues (`GET /queues`)
+  - [x] default queue
+- [ ] user permissions per queue
+- [ ] reset queue (`POST /queues/{q}/reset`?)
+- [ ] update README.md
+- [ ] use pika channels for routing
+- [ ] private gcr repo
+- [ ] unit testing
+- [ ] linters
+- [ ] CI (github actions)
+- [ ] return message as it was posted, with metadata in headers?
+- [ ] JSON schema validation
+- [ ] Swagger
+- [ ] warning if using default users config
+- [ ] rabbitmq image without management

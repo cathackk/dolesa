@@ -7,6 +7,9 @@ from flask import Flask
 from flask import request
 from flask_httpauth import HTTPBasicAuth
 
+from dolesa.queueing import DEFAULT_QUEUE
+from dolesa.queueing import QUEUES
+from dolesa.queueing import QUEUES_SET
 from dolesa.users import authenticate
 from dolesa.users import User
 from dolesa.queueing import receive_from_queue
@@ -20,8 +23,14 @@ MAX_CONTENT_LENGTH = int(os.environ.get('MAX_CONTENT_LENGTH', 4096))
 
 
 @app.route('/send', methods=['POST'])
-@auth.login_required(role='publisher')
-def send():
+@app.route('/queues/<queue>/send', methods=['POST'])
+@auth.login_required(role='send')
+def send(queue: str = None):
+    if queue is None:
+        queue = DEFAULT_QUEUE
+    if queue not in QUEUES_SET:
+        return "not found", HTTPStatus.NOT_FOUND
+
     # TODO: refactor for readability
     # TODO: JSON schema validation
 
@@ -42,7 +51,7 @@ def send():
         return "JSON must be either dict or list", HTTPStatus.UNPROCESSABLE_ENTITY
 
     try:
-        routed = send_to_queue(*messages, sender=auth.current_user(), ts=datetime.now())
+        routed = send_to_queue(queue, *messages, sender=auth.current_user(), ts=datetime.now())
     except Exception as exc:
         app.logger.error("failed to send to queue", exc_info=exc)
         return "failed to send to queue", HTTPStatus.INTERNAL_SERVER_ERROR
@@ -54,16 +63,28 @@ def send():
 
 
 @app.route('/receive', methods=['POST'])
-@auth.login_required(role='consumer')
-def receive():
+@app.route('/queues/<queue>/receive', methods=['POST'])
+@auth.login_required(role='receive')
+def receive(queue: str = None):
+    if queue is None:
+        queue = DEFAULT_QUEUE
+    if queue not in QUEUES_SET:
+        return "not found", HTTPStatus.NOT_FOUND
+
     request_json = request.get_json(force=True, silent=True) or {}
     count = request_json.get('count', 1)
 
     try:
-        return receive_from_queue(count)
+        return receive_from_queue(queue, count)
     except Exception as exc:
         app.logger.error("failed to receive from queue", exc_info=exc)
         return "failed to receive from queue", HTTPStatus.INTERNAL_SERVER_ERROR
+
+
+@app.route('/queues', methods=['GET'])
+@auth.login_required(role='list')
+def queues():
+    return QUEUES
 
 
 @app.route('/health')
@@ -81,7 +102,7 @@ def verify_password(username: str, password: str) -> Optional[str]:
 
 @auth.get_user_roles
 def get_user_roles(user: User) -> list[str]:
-    return user.roles
+    return user.permissions
 
 
 if __name__ == '__main__':

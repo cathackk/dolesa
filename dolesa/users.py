@@ -13,14 +13,14 @@ def digest_password(password_plain: str) -> str:
 class User:
     username: str
     password_digest: str
-    roles: list[str]
+    permissions: list[str]
 
     @classmethod
     def from_dict(cls, d: dict) -> 'User':
         return cls(
             username=d['username'],
             password_digest=d.get('password_digest') or digest_password(d['password_plain']),
-            roles=d['roles'],
+            permissions=d['permissions'],
         )
 
 

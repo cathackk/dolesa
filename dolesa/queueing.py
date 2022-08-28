@@ -8,26 +8,44 @@ import requests
 
 from dolesa.users import User
 
+
 logger = logging.getLogger(__name__)
 
 RABBITMQ_USER = os.environ['RABBITMQ_USER']
 RABBITMQ_PASS = os.environ['RABBITMQ_PASS']
 RABBITMQ_HOST = os.environ['RABBITMQ_HOST']
-RABBITMQ_POST = os.environ['RABBITMQ_PORT']
+RABBITMQ_PORT = os.environ['RABBITMQ_PORT']
 RABBITMQ_EXCHANGE = os.environ['RABBITMQ_EXCHANGE']
-RABBITMQ_QUEUE = os.environ['RABBITMQ_QUEUE']
-RABBITMQ_ROUTING_KEY = os.environ['RABBITMQ_ROUTING_KEY']
 
 
-def send_to_queue(*messages: dict[str, Any], sender: User, ts: datetime) -> bool:
-    return all(_sent_to_queue_single(message, sender, ts) for message in messages)
+def _load_queues(fn: str = 'queues.txt') -> list[str]:
+    with open(fn) as f:
+        queues = [line.strip() for line in f]
+
+    if not queues:
+        return ['default']
+
+    return queues
+
+
+QUEUES = _load_queues()
+QUEUES_SET = frozenset(QUEUES)
+DEFAULT_QUEUE = QUEUES[0]
+
+
+def send_to_queue(queue: str, *messages: dict[str, Any], sender: User, ts: datetime) -> bool:
+    return all(_sent_to_queue_single(queue, message, sender, ts) for message in messages)
 
 
 # TODO: use pika instead of HTTP
 
 
-def _sent_to_queue_single(message: dict[str, Any], sender: User, ts: datetime) -> bool:
+def _sent_to_queue_single(queue: str, message: dict[str, Any], sender: User, ts: datetime) -> bool:
+    if not queue in QUEUES_SET:
+        raise KeyError(queue)
+
     payload = {
+        'queue': queue,
         'message': message,
         'sender': sender.username,
         'ts': int(ts.timestamp())
@@ -39,11 +57,11 @@ def _sent_to_queue_single(message: dict[str, Any], sender: User, ts: datetime) -
         raise ValueError(f"failed to encode {message!r}") from exc
 
     response = requests.post(
-        url=f'http://{RABBITMQ_HOST}:{RABBITMQ_POST}/api/exchanges/%2f/{RABBITMQ_EXCHANGE}/publish',
+        url=f'http://{RABBITMQ_HOST}:{RABBITMQ_PORT}/api/exchanges/%2f/{RABBITMQ_EXCHANGE}/publish',
         auth=(RABBITMQ_USER, RABBITMQ_PASS),
         json={
             'properties': {},
-            'routing_key': RABBITMQ_ROUTING_KEY,
+            'routing_key': queue,
             'payload': payload_json,
             'payload_encoding': 'string',
         },
@@ -56,9 +74,12 @@ def _sent_to_queue_single(message: dict[str, Any], sender: User, ts: datetime) -
     return response.json()['routed']
 
 
-def receive_from_queue(count: int) -> dict[str, Any]:
+def receive_from_queue(queue: str, count: int) -> dict[str, Any]:
+    if not queue in QUEUES_SET:
+        raise KeyError(queue)
+
     response = requests.post(
-        url=f'http://{RABBITMQ_HOST}:{RABBITMQ_POST}/api/queues/%2f/{RABBITMQ_QUEUE}/get',
+        url=f'http://{RABBITMQ_HOST}:{RABBITMQ_PORT}/api/queues/%2f/{queue}/get',
         auth=(RABBITMQ_USER, RABBITMQ_PASS),
         json={
             'count': count,
