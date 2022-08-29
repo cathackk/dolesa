@@ -16,11 +16,12 @@ RABBITMQ_PASS = os.environ['RABBITMQ_PASS']
 RABBITMQ_HOST = os.environ['RABBITMQ_HOST']
 RABBITMQ_PORT = os.environ['RABBITMQ_PORT']
 RABBITMQ_EXCHANGE = os.environ['RABBITMQ_EXCHANGE']
+RABBITMQ_TIMEOUT_SECONDS = int(os.environ.get('RABBITMQ_TIMEOUT_SECONDS', 5))
 
 
-def _load_queues(fn: str = 'queues.txt') -> list[str]:
-    with open(fn) as f:
-        queues = [line.strip() for line in f]
+def _load_queues(filename: str = 'queues.txt') -> list[str]:
+    with open(filename) as file:
+        queues = [line.strip() for line in file]
 
     if not queues:
         return ['default']
@@ -33,14 +34,19 @@ QUEUES_SET = frozenset(QUEUES)
 DEFAULT_QUEUE = QUEUES[0]
 
 
-def send_to_queue(queue: str, *messages: dict[str, Any], sender: User, ts: datetime) -> bool:
-    return all(_sent_to_queue_single(queue, message, sender, ts) for message in messages)
+def send_to_queue(queue: str, *messages: dict[str, Any], sender: User, timestamp: datetime) -> bool:
+    return all(_sent_to_queue_single(queue, message, sender, timestamp) for message in messages)
 
 
 # TODO: use pika instead of HTTP
 
 
-def _sent_to_queue_single(queue: str, message: dict[str, Any], sender: User, ts: datetime) -> bool:
+def _sent_to_queue_single(
+    queue: str,
+    message: dict[str, Any],
+    sender: User,
+    timestamp: datetime,
+) -> bool:
     if not queue in QUEUES_SET:
         raise KeyError(queue)
 
@@ -48,7 +54,7 @@ def _sent_to_queue_single(queue: str, message: dict[str, Any], sender: User, ts:
         'queue': queue,
         'message': message,
         'sender': sender.username,
-        'ts': int(ts.timestamp())
+        'ts': int(timestamp.timestamp())
     }
 
     try:
@@ -65,13 +71,12 @@ def _sent_to_queue_single(queue: str, message: dict[str, Any], sender: User, ts:
             'payload': payload_json,
             'payload_encoding': 'string',
         },
-        headers={
-            'Content-Type': 'application/json'
-        }
+        headers={'Content-Type': 'application/json'},
+        timeout=RABBITMQ_TIMEOUT_SECONDS,
     )
 
     response.raise_for_status()
-    return response.json()['routed']
+    return bool(response.json()['routed'])
 
 
 def receive_from_queue(queue: str, count: int) -> dict[str, Any]:
@@ -86,9 +91,8 @@ def receive_from_queue(queue: str, count: int) -> dict[str, Any]:
             'encoding': 'auto',
             'ackmode': 'ack_requeue_false',
         },
-        headers={
-            'Content-Type': 'application/json'
-        }
+        headers={'Content-Type': 'application/json'},
+        timeout=RABBITMQ_TIMEOUT_SECONDS,
     )
 
     response.raise_for_status()

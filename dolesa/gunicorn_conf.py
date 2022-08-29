@@ -1,3 +1,5 @@
+# pylint: skip-file
+
 # Gunicorn config variables
 loglevel = "info"
 errorlog = "-"  # stderr

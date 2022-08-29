@@ -1,10 +1,12 @@
 import os
 from datetime import datetime
 from http import HTTPStatus
+from typing import Any
 from typing import Optional
 
 from flask import Flask
 from flask import request
+from flask.logging import create_logger
 from flask_httpauth import HTTPBasicAuth
 
 from dolesa.queueing import DEFAULT_QUEUE
@@ -15,17 +17,20 @@ from dolesa.users import User
 from dolesa.queueing import receive_from_queue
 from dolesa.queueing import send_to_queue
 
+
 app = Flask(__name__)
 auth = HTTPBasicAuth()
+logger = create_logger(app)
 
 
 MAX_CONTENT_LENGTH = int(os.environ.get('MAX_CONTENT_LENGTH', 4096))
 
 
+# pylint: disable=too-many-return-statements
 @app.route('/send', methods=['POST'])
 @app.route('/queues/<queue>/send', methods=['POST'])
 @auth.login_required(role='send')
-def send(queue: str = None):
+def send(queue: Optional[str] = None) -> Any:
     if queue is None:
         queue = DEFAULT_QUEUE
     if queue not in QUEUES_SET:
@@ -43,7 +48,7 @@ def send(queue: str = None):
     if isinstance(request_json, list):
         try:
             messages = [dict(value) for value in request_json]
-        except:
+        except TypeError:
             return "JSON list must contain objects only", HTTPStatus.UNPROCESSABLE_ENTITY
     elif isinstance(request_json, dict):
         messages = [request_json]
@@ -51,10 +56,16 @@ def send(queue: str = None):
         return "JSON must be either dict or list", HTTPStatus.UNPROCESSABLE_ENTITY
 
     try:
-        routed = send_to_queue(queue, *messages, sender=auth.current_user(), ts=datetime.now())
-    except Exception as exc:
-        app.logger.error("failed to send to queue", exc_info=exc)
-        return "failed to send to queue", HTTPStatus.INTERNAL_SERVER_ERROR
+        routed = send_to_queue(
+            queue,
+            *messages,
+            sender=auth.current_user(),
+            timestamp=datetime.now(),
+        )
+
+    except Exception as exc:   # pylint: disable=broad-except
+        logger.error("routing failed", exc_info=exc)
+        return "routing failed", HTTPStatus.INTERNAL_SERVER_ERROR
 
     if not routed:
         return "not routed", HTTPStatus.INTERNAL_SERVER_ERROR
@@ -65,7 +76,7 @@ def send(queue: str = None):
 @app.route('/receive', methods=['POST'])
 @app.route('/queues/<queue>/receive', methods=['POST'])
 @auth.login_required(role='receive')
-def receive(queue: str = None):
+def receive(queue: Optional[str] = None) -> Any:
     if queue is None:
         queue = DEFAULT_QUEUE
     if queue not in QUEUES_SET:
@@ -76,19 +87,20 @@ def receive(queue: str = None):
 
     try:
         return receive_from_queue(queue, count)
-    except Exception as exc:
-        app.logger.error("failed to receive from queue", exc_info=exc)
+
+    except Exception as exc:  # pylint: disable=broad-except
+        logger.error("failed to receive from queue", exc_info=exc)
         return "failed to receive from queue", HTTPStatus.INTERNAL_SERVER_ERROR
 
 
 @app.route('/queues', methods=['GET'])
 @auth.login_required(role='list')
-def queues():
+def queues() -> Any:
     return QUEUES
 
 
 @app.route('/health')
-def health():
+def health() -> Any:
     return {"status": "running"}
 
 
@@ -96,7 +108,7 @@ def health():
 
 
 @auth.verify_password
-def verify_password(username: str, password: str) -> Optional[str]:
+def verify_password(username: str, password: str) -> Optional[User]:
     return authenticate(username, password)
 
 

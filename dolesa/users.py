@@ -16,19 +16,19 @@ class User:
     permissions: list[str]
 
     @classmethod
-    def from_dict(cls, d: dict) -> 'User':
+    def from_dict(cls, data: dict) -> 'User':
         return cls(
-            username=d['username'],
-            password_digest=d.get('password_digest') or digest_password(d['password_plain']),
-            permissions=d['permissions'],
+            username=data['username'],
+            password_digest=data.get('password_digest') or digest_password(data['password_plain']),
+            permissions=data['permissions'],
         )
 
 
-def load_users(fn: str = 'users.json') -> dict[str, User]:
-    with open(fn) as f:
+def load_users(filename: str = 'users.json') -> dict[str, User]:
+    with open(filename) as file:
         return {
             (user := User.from_dict(d)).username: user
-            for d in json.load(f)['users']
+            for d in json.load(file)['users']
         }
 
 

@@ -1,5 +1,6 @@
 # TODO
 
+- [ ] https
 - [ ] proper secrets
 - [x] multiple queues:
   - [x] queue list
@@ -10,9 +11,9 @@
 - [ ] reset queue (`POST /queues/{q}/reset`?)
 - [ ] update README.md
 - [ ] use pika channels for routing
-- [ ] private gcr repo
 - [ ] unit testing
-- [ ] linters
+- [x] linters
+- [ ] black
 - [ ] CI (github actions)
 - [ ] return message as it was posted, with metadata in headers?
 - [ ] JSON schema validation
