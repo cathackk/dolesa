@@ -31,6 +31,6 @@ COPY wait-for-it.sh rabbitmq-init.sh entrypoint.sh ./
 # copy the app
 COPY dolesa ./dolesa/
 # copy config
-COPY users.json queues.txt ./
+COPY users.yaml queues.txt ./
 
 ENTRYPOINT ["./entrypoint.sh"]

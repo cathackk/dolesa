@@ -15,7 +15,6 @@
 - [x] linters
 - [ ] black
 - [ ] CI (github actions)
-- [ ] return message as it was posted, with metadata in headers?
 - [ ] JSON schema validation
 - [ ] Swagger
 - [ ] warning if using default users config
