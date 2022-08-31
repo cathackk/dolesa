@@ -13,7 +13,7 @@ export RABBITMQ_EXCHANGE=exchange
 rabbitmq-server -detached
 
 # wait for it to start up
-./rabbitmq-init.sh
+./scripts/rabbitmq-init.sh
 
 # run the Flask app
 gunicorn --conf ./dolesa/gunicorn_conf.py --bind "0.0.0.0:${PORT:-8080}" dolesa.main:app

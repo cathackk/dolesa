@@ -19,7 +19,7 @@ API_URL="http://$RABBITMQ_HOST:$RABBITMQ_PORT/api"
 
 
 # wait for rabbit to go up
-./wait-for-it.sh "$RABBITMQ_HOST:$RABBITMQ_PORT"
+./scripts/wait-for-it.sh "$RABBITMQ_HOST:$RABBITMQ_PORT"
 
 # create exchange
 echo ">>> creating exchange ..."
@@ -33,4 +33,4 @@ while read QUEUE; do
        -d '{"auto_delete":false,"durable":true,"arguments":{}}'
   curl -s -u $AUTH -X POST "$API_URL/bindings/%2f/e/$RABBITMQ_EXCHANGE/q/$QUEUE" \
        -d '{"routing_key":"'$QUEUE'","arguments":{}}'
-done < queues.txt
+done < ./config/queues.txt

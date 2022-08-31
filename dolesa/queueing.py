@@ -19,7 +19,7 @@ RABBITMQ_EXCHANGE = os.environ['RABBITMQ_EXCHANGE']
 RABBITMQ_TIMEOUT_SECONDS = int(os.environ.get('RABBITMQ_TIMEOUT_SECONDS', 5))
 
 
-def _load_queues(filename: str = 'queues.txt') -> list[str]:
+def _load_queues(filename: str = 'config/queues.txt') -> list[str]:
     with open(filename) as file:
         queues = [line.strip() for line in file]
 

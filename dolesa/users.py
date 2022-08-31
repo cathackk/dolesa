@@ -12,13 +12,36 @@ import yaml
 from dolesa.exceptions import ConfigurationException
 
 
+MIN_PASSWORD_LENGTH = 8
+VALID_PERMISSIONS = frozenset(['send', 'receive', 'list'])
+PASSWORD_HEXDIGEST_LENGTH = 64  # SHA-256
+
+
+@lru_cache()
+def load_users(filename: str = 'config/users.yaml') -> dict[str, 'User']:
+    with open(filename) as file:
+        return {
+            (user := User.from_dict(d)).username: user
+            for d in yaml.safe_load(file)['users']
+        }
+
+
 def digest_password(password_plain: str) -> str:
     return hashlib.sha256(password_plain.encode()).hexdigest().lower()
 
 
-MIN_PASSWORD_LENGTH = 8
-VALID_PERMISSIONS = frozenset(['send', 'receive', 'list'])
-PASSWORD_HEXDIGEST_LENGTH = 64  # SHA-256
+def authenticate(username: str, password: str) -> Optional['User']:
+    user = load_users().get(username)
+    if not user:
+        # user not found
+        return None
+
+    if not secrets.compare_digest(digest_password(password), user.password_digest):
+        # wrong password
+        return None
+
+    # all ok
+    return user
 
 
 @dataclass(frozen=True)
@@ -138,28 +161,3 @@ class User:
             password_digest=password_digest,
             permissions=permissions,
         )
-
-
-@lru_cache()
-def load_users(filename: str = 'users.yaml') -> dict[str, User]:
-    with open(filename) as file:
-        users_data: dict[str, User] = {
-            (user := User.from_dict(d)).username: user
-            for d in yaml.safe_load(file)['users']
-        }
-
-    return users_data
-
-
-def authenticate(username: str, password: str) -> Optional[User]:
-    user = load_users().get(username)
-    if not user:
-        # user not found
-        return None
-
-    if not secrets.compare_digest(digest_password(password), user.password_digest):
-        # wrong password
-        return None
-
-    # all ok
-    return user
