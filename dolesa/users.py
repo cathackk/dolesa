@@ -1,42 +1,37 @@
+import string
+
+from functools import lru_cache
+
 import hashlib
-import json
 import secrets
 from dataclasses import dataclass
 from typing import Optional
 
+import yaml
 
-def digest_password(password_plain: str) -> str:
-    return hashlib.sha256(password_plain.encode()).hexdigest()
-
-
-@dataclass(frozen=True)
-class User:
-    username: str
-    password_digest: str
-    roles: list[str]
-
-    @classmethod
-    def from_dict(cls, d: dict) -> 'User':
-        return cls(
-            username=d['username'],
-            password_digest=d.get('password_digest') or digest_password(d['password_plain']),
-            roles=d['roles'],
-        )
+from dolesa.exceptions import ConfigurationException
 
 
-def load_users(fn: str = 'users.json') -> dict[str, User]:
-    with open(fn) as f:
+MIN_PASSWORD_LENGTH = 8
+VALID_PERMISSIONS = frozenset(['send', 'receive', 'list'])
+PASSWORD_HEXDIGEST_LENGTH = 64  # SHA-256
+
+
+@lru_cache()
+def load_users(filename: str = 'config/users.yaml') -> dict[str, 'User']:
+    with open(filename) as file:
         return {
             (user := User.from_dict(d)).username: user
-            for d in json.load(f)['users']
+            for d in yaml.safe_load(file)['users']
         }
 
 
-USERS = load_users('users.json')
+def digest_password(password_plain: str) -> str:
+    return hashlib.sha256(password_plain.encode()).hexdigest().lower()
 
 
-def authenticate(username: str, password: str) -> Optional[User]:
-    user = USERS.get(username)
+def authenticate(username: str, password: str) -> Optional['User']:
+    user = load_users().get(username)
     if not user:
         # user not found
         return None
@@ -47,3 +42,122 @@ def authenticate(username: str, password: str) -> Optional[User]:
 
     # all ok
     return user
+
+
+@dataclass(frozen=True)
+class User:
+    username: str
+    password_digest: str
+    permissions: list[str]
+
+    @classmethod
+    def from_dict(cls, data: dict) -> 'User':
+        """
+        >>> User.from_dict({
+        ...     'username': 'bob',
+        ...     'password_plain': 'pass1234',
+        ...     'permissions': ['send', 'receive']}
+        ... )  # doctest: +NORMALIZE_WHITESPACE
+        User(username='bob',
+             password_digest='bd94dcda26fccb4e68d6a31f9b5aac0b571ae266d822620e901ef7ebe3a11d4f',
+             permissions=['send', 'receive'])
+
+        >>> User.from_dict({})
+        Traceback (most recent call last):
+        ...
+        dolesa.exceptions.ConfigurationException: no username
+
+        >>> User.from_dict({'username': ''})
+        Traceback (most recent call last):
+        ...
+        dolesa.exceptions.ConfigurationException: username must not be empty
+
+        >>> User.from_dict({'username': 'bob'})
+        Traceback (most recent call last):
+        ...
+        dolesa.exceptions.ConfigurationException: bob: no `password_digest` or `password_plain`
+
+        >>> User.from_dict({'username': 'bob', 'password_plain': '123'})
+        Traceback (most recent call last):
+        ...
+        dolesa.exceptions.ConfigurationException: bob: password must be at least 8 characters long
+
+        >>> User.from_dict({'username': 'bob', 'password_digest': 'abcd'})
+        ... # doctest: +NORMALIZE_WHITESPACE
+        Traceback (most recent call last):
+        ...
+        dolesa.exceptions.ConfigurationException:
+        bob: password digest must be exactly 64 characters long
+
+        >>> User.from_dict({'username': 'bob', 'password_digest': '0'*63 + 'X'})
+        ... # doctest: +NORMALIZE_WHITESPACE
+        Traceback (most recent call last):
+        ...
+        dolesa.exceptions.ConfigurationException:
+        bob: nonhexadecimal characters found in password digest
+
+        >>> User.from_dict({
+        ...     'username': 'bob',
+        ...     'password_plain': '12345678',
+        ...     'permissions': ['send', 'something']
+        ... })  # doctest: +NORMALIZE_WHITESPACE
+        Traceback (most recent call last):
+        ...
+        dolesa.exceptions.ConfigurationException:
+        bob: invalid permission(s) ['something']; valid permissions are: ['list', 'receive', 'send']
+        """
+
+        # username
+        username = data.pop('username', None)
+        if username is None:
+            raise ConfigurationException('no username')
+        if not username:
+            raise ConfigurationException('username must not be empty')
+
+        # password
+        if 'password_digest' in data:
+            password_digest = data.pop('password_digest').strip().lower()
+            if len(password_digest) != PASSWORD_HEXDIGEST_LENGTH:
+                raise ConfigurationException(
+                    f'{username}: password digest must be exactly {PASSWORD_HEXDIGEST_LENGTH} '
+                    f'characters long'
+                )
+            if set(password_digest) - set(string.hexdigits):
+                raise ConfigurationException(
+                    f'{username}: nonhexadecimal characters found in password digest'
+                )
+            if 'password_plain' in data:
+                raise ConfigurationException(
+                    f'{username}: cannot define both `password_digest` and `password_plain`'
+                )
+        elif 'password_plain' in data:
+            password_plain = data.pop('password_plain')
+            if len(password_plain) < MIN_PASSWORD_LENGTH:
+                raise ConfigurationException(
+                    f'{username}: password must be at least {MIN_PASSWORD_LENGTH} characters long'
+                )
+            password_digest = digest_password(password_plain)
+        else:
+            raise ConfigurationException(
+                f'{username}: no `password_digest` or `password_plain`'
+            )
+
+        # permissions
+        permissions = data.pop('permissions', None)
+        if permissions is None:
+            raise ConfigurationException(f'{username}: no permissions')
+        if extra_permissions := sorted(set(permissions) - VALID_PERMISSIONS):
+            raise ConfigurationException(
+                f'{username}: invalid permission(s) {extra_permissions}; '
+                f'valid permissions are: {sorted(VALID_PERMISSIONS)}'
+            )
+
+        # config keys
+        if extra_kwargs := sorted(data.keys()):
+            raise ConfigurationException(f'{username}: invalid configuration key(s) {extra_kwargs}')
+
+        return cls(
+            username=username,
+            password_digest=password_digest,
+            permissions=permissions,
+        )

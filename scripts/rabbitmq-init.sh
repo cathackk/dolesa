@@ -12,8 +12,6 @@ set -u
 : "$RABBITMQ_HOST"
 : "$RABBITMQ_PORT"
 : "$RABBITMQ_EXCHANGE"
-: "$RABBITMQ_QUEUE"
-: "$RABBITMQ_ROUTING_KEY"
 
 
 AUTH="$RABBITMQ_USER:$RABBITMQ_PASS"
@@ -21,19 +19,18 @@ API_URL="http://$RABBITMQ_HOST:$RABBITMQ_PORT/api"
 
 
 # wait for rabbit to go up
-./wait-for-it.sh "$RABBITMQ_HOST:$RABBITMQ_PORT"
+./scripts/wait-for-it.sh "$RABBITMQ_HOST:$RABBITMQ_PORT"
 
 # create exchange
 echo ">>> creating exchange ..."
 curl -s -u $AUTH -X PUT "$API_URL/exchanges/%2f/$RABBITMQ_EXCHANGE" \
      -d '{"type":"direct","auto_delete":false,"durable":true,"internal":false,"arguments":{}}'
 
-# create queue
-echo ">>> creating queue ..."
-curl -s -u $AUTH -X PUT "$API_URL/queues/%2f/$RABBITMQ_QUEUE" \
-     -d '{"auto_delete":false,"durable":true,"arguments":{}}'
-
-# creating binding
-echo ">>> creating binding ..."
-curl -s -u $AUTH -X POST "$API_URL/bindings/%2f/e/$RABBITMQ_EXCHANGE/q/$RABBITMQ_QUEUE" \
-     -d '{"routing_key":"'$RABBITMQ_ROUTING_KEY'","arguments":{}}'
+# create queues & bindings
+yq -r '.queues[].name' ./config/queues.yaml | while read QUEUE; do
+  echo ">>> creating queue '$QUEUE' ..."
+  curl -s -u $AUTH -X PUT "$API_URL/queues/%2f/$QUEUE" \
+       -d '{"auto_delete":false,"durable":true,"arguments":{}}'
+  curl -s -u $AUTH -X POST "$API_URL/bindings/%2f/e/$RABBITMQ_EXCHANGE/q/$QUEUE" \
+       -d '{"routing_key":"'$QUEUE'","arguments":{}}'
+done

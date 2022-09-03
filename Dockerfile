@@ -8,7 +8,8 @@ RUN set -eux; \
         sudo \
         curl \
         make \
-        software-properties-common; \
+        jq \
+    	software-properties-common; \
     sudo add-apt-repository -y ppa:deadsnakes/ppa; \
     sudo apt-get install -y --no-install-recommends python3.9 python3.9-distutils; \
     curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py; \
@@ -27,10 +28,10 @@ COPY Makefile .
 RUN make install
 
 # copy local support code
-COPY wait-for-it.sh rabbitmq-init.sh entrypoint.sh ./
+COPY scripts ./scripts/
 # copy the app
 COPY dolesa ./dolesa/
-# copy users list
-COPY users.json ./
+# copy config
+COPY config ./config/
 
-ENTRYPOINT ["./entrypoint.sh"]
+ENTRYPOINT ["./scripts/entrypoint.sh"]
