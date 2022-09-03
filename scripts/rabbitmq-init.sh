@@ -27,10 +27,10 @@ curl -s -u $AUTH -X PUT "$API_URL/exchanges/%2f/$RABBITMQ_EXCHANGE" \
      -d '{"type":"direct","auto_delete":false,"durable":true,"internal":false,"arguments":{}}'
 
 # create queues & bindings
-while read QUEUE; do
+yq -r '.queues[].name' ./config/queues.yaml | while read QUEUE; do
   echo ">>> creating queue '$QUEUE' ..."
   curl -s -u $AUTH -X PUT "$API_URL/queues/%2f/$QUEUE" \
        -d '{"auto_delete":false,"durable":true,"arguments":{}}'
   curl -s -u $AUTH -X POST "$API_URL/bindings/%2f/e/$RABBITMQ_EXCHANGE/q/$QUEUE" \
        -d '{"routing_key":"'$QUEUE'","arguments":{}}'
-done < ./config/queues.txt
+done

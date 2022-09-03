@@ -8,7 +8,8 @@ RUN set -eux; \
         sudo \
         curl \
         make \
-        software-properties-common; \
+        jq \
+    	software-properties-common; \
     sudo add-apt-repository -y ppa:deadsnakes/ppa; \
     sudo apt-get install -y --no-install-recommends python3.9 python3.9-distutils; \
     curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py; \

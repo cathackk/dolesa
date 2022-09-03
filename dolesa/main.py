@@ -8,10 +8,9 @@ from flask import Flask
 from flask import request
 from flask.logging import create_logger
 from flask_httpauth import HTTPBasicAuth
+from jsonschema.exceptions import ValidationError
 
-from dolesa.queueing import DEFAULT_QUEUE
 from dolesa.queueing import QUEUES
-from dolesa.queueing import QUEUES_SET
 from dolesa.users import authenticate
 from dolesa.users import User
 from dolesa.queueing import receive_from_queue
@@ -26,14 +25,25 @@ logger = create_logger(app)
 MAX_CONTENT_LENGTH = int(os.environ.get('MAX_CONTENT_LENGTH', 4096))
 
 
+@app.route('/queues', methods=['GET'])
+@auth.login_required(role='list')
+def queues() -> Any:
+    return {
+        'queues': [q.name for q in QUEUES]
+    }
+
+
+# TODO: errors as JSON
+
+
 # pylint: disable=too-many-return-statements
 @app.route('/send', methods=['POST'])
-@app.route('/queues/<queue>/send', methods=['POST'])
+@app.route('/queues/<queue_name>/send', methods=['POST'])
 @auth.login_required(role='send')
-def send(queue: Optional[str] = None) -> Any:
-    if queue is None:
-        queue = DEFAULT_QUEUE
-    if queue not in QUEUES_SET:
+def send(queue_name: Optional[str] = None) -> Any:
+    try:
+        queue = QUEUES[queue_name]
+    except KeyError:
         return "not found", HTTPStatus.NOT_FOUND
 
     # TODO: refactor for readability
@@ -63,6 +73,10 @@ def send(queue: Optional[str] = None) -> Any:
             timestamp=datetime.now(),
         )
 
+    except ValidationError as exc:
+        logger.error("validation failed", exc_info=exc)
+        return "invalid message", HTTPStatus.UNPROCESSABLE_ENTITY
+
     except Exception as exc:   # pylint: disable=broad-except
         logger.error("routing failed", exc_info=exc)
         return "routing failed", HTTPStatus.INTERNAL_SERVER_ERROR
@@ -74,12 +88,12 @@ def send(queue: Optional[str] = None) -> Any:
 
 
 @app.route('/receive', methods=['POST'])
-@app.route('/queues/<queue>/receive', methods=['POST'])
+@app.route('/queues/<queue_name>/receive', methods=['POST'])
 @auth.login_required(role='receive')
-def receive(queue: Optional[str] = None) -> Any:
-    if queue is None:
-        queue = DEFAULT_QUEUE
-    if queue not in QUEUES_SET:
+def receive(queue_name: Optional[str] = None) -> Any:
+    try:
+        queue = QUEUES[queue_name]
+    except KeyError:
         return "not found", HTTPStatus.NOT_FOUND
 
     request_json = request.get_json(force=True, silent=True) or {}
@@ -93,10 +107,19 @@ def receive(queue: Optional[str] = None) -> Any:
         return "failed to receive from queue", HTTPStatus.INTERNAL_SERVER_ERROR
 
 
-@app.route('/queues', methods=['GET'])
-@auth.login_required(role='list')
-def queues() -> Any:
-    return QUEUES
+@app.route('/info', methods=['GET'])
+@app.route('/queues/<queue_name>', methods=['GET'])
+@auth.login_required(role='send')
+def queue_schema(queue_name: Optional[str] = None) -> Any:
+    try:
+        queue = QUEUES[queue_name]
+    except KeyError:
+        return "not found", HTTPStatus.NOT_FOUND
+
+    return {
+        'queue': queue.name,
+        'schema': queue.json_schema or {},
+    }
 
 
 @app.route('/health')
