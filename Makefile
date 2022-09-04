@@ -8,15 +8,31 @@ install-dev: install
 format: isort black
 
 isort:
-	isort dolesa
+	isort dolesa tests
 
 black:
-	black dolesa
+	black dolesa tests
 
 checks: mypy pylint
 
 mypy:
-	mypy -p dolesa
+	mypy -p dolesa tests
 
 pylint:
-	pylint dolesa
+	pylint dolesa tests
+
+build-for-tests:
+	docker build . -t dolesa:test
+
+run-for-tests: build-for-tests
+	docker run -it --rm \
+	-p 8080:8080 \
+	--name dolesa-test \
+	--env DOLESA_ADMIN_USERNAME=admin \
+	--env DOLESA_ADMIN_PASSWORD=admin123 \
+	dolesa:test
+
+run-tests:
+	DOLESA_ADMIN_USERNAME=admin \
+	DOLESA_ADMIN_PASSWORD=admin123 \
+	pytest tests

@@ -1,8 +1,9 @@
+import os
+
 import hashlib
 import secrets
 import string
 from dataclasses import dataclass
-from functools import lru_cache
 from typing import Optional
 
 import yaml
@@ -13,29 +14,13 @@ MIN_PASSWORD_LENGTH = 8
 VALID_PERMISSIONS = frozenset(['send', 'receive', 'list'])
 PASSWORD_HEXDIGEST_LENGTH = 64  # SHA-256
 
-
-@lru_cache()
-def load_users(filename: str = 'config/users.yaml') -> dict[str, 'User']:
-    with open(filename) as file:
-        return {(user := User.from_dict(d)).username: user for d in yaml.safe_load(file)['users']}
+# overwrites settings in users.yaml
+ADMIN_USERNAME = os.environ.get('DOLESA_ADMIN_USERNAME')
+ADMIN_PASSWORD = os.environ.get('DOLESA_ADMIN_PASSWORD')
 
 
 def digest_password(password_plain: str) -> str:
     return hashlib.sha256(password_plain.encode()).hexdigest().lower()
-
-
-def authenticate(username: str, password: str) -> Optional['User']:
-    user = load_users().get(username)
-    if not user:
-        # user not found
-        return None
-
-    if not secrets.compare_digest(digest_password(password), user.password_digest):
-        # wrong password
-        return None
-
-    # all ok
-    return user
 
 
 @dataclass(frozen=True)
@@ -153,3 +138,35 @@ class User:
             password_digest=password_digest,
             permissions=permissions,
         )
+
+
+def load_users(filename: str = 'config/users.yaml') -> dict[str, User]:
+    with open(filename) as file:
+        users_config = yaml.safe_load(file)['users']
+        users = {(user := User.from_dict(d)).username: user for d in users_config}
+
+        if ADMIN_USERNAME and ADMIN_PASSWORD:
+            users[ADMIN_USERNAME] = User(
+                username=ADMIN_USERNAME,
+                password_digest=digest_password(ADMIN_PASSWORD),
+                permissions=sorted(VALID_PERMISSIONS)
+            )
+
+        return users
+
+
+USERS = load_users()
+
+
+def authenticate(username: str, password: str) -> Optional['User']:
+    user = USERS.get(username)
+    if not user:
+        # user not found
+        return None
+
+    if not secrets.compare_digest(digest_password(password), user.password_digest):
+        # wrong password
+        return None
+
+    # all ok
+    return user

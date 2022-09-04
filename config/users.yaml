@@ -1,7 +1,8 @@
-users:
-  - username: admin
-    password_plain: admin  # must be changed to at least 8 characters!
-    permissions:
-      - send
-      - receive
-      - list
+users: []
+
+#  - username: john
+#    password_plain: somesecretpassword
+#    permissions:
+#      - send
+#      - receive
+#      - list

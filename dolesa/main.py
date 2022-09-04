@@ -21,7 +21,7 @@ logger = create_logger(app)
 QUEUES = Queues.load()
 
 # TODO: server config
-MAX_CONTENT_LENGTH = int(os.environ.get('MAX_CONTENT_LENGTH', 4096))
+MAX_CONTENT_LENGTH = int(os.environ.get('DOLESA_MAX_CONTENT_LENGTH', 4096))
 
 
 JSONResponse = tuple[dict[str, Any], int]
@@ -36,6 +36,18 @@ def queues() -> JSONResponse:
     }, HTTPStatus.OK
 
 
+@app.route('/info', methods=['GET'])
+@app.route('/queues/<queue_name>', methods=['GET'])
+@auth.login_required(role='send')
+def queue_info(queue_name: Optional[str] = None) -> JSONResponse:
+    try:
+        queue = QUEUES[queue_name]
+    except KeyError:
+        return queue_not_found_response(queue_name)
+
+    return {'queue': queue.name, 'schema': queue.json_schema or {}}, HTTPStatus.OK
+
+
 @app.route('/send', methods=['POST'])
 @app.route('/queues/<queue_name>/send', methods=['POST'])
 @auth.login_required(role='send')
@@ -43,10 +55,7 @@ def send(queue_name: Optional[str] = None) -> JSONResponse:
     try:
         queue = QUEUES[queue_name]
     except KeyError:
-        return {
-            'error': "queue not found",
-            'description': f"queue {queue_name!r} is configured",
-        }, HTTPStatus.NOT_FOUND
+        return queue_not_found_response(queue_name)
 
     # TODO: refactor for readability
 
@@ -106,10 +115,7 @@ def receive(queue_name: Optional[str] = None) -> JSONResponse:
     try:
         queue = QUEUES[queue_name]
     except KeyError:
-        return {
-            'error': "queue not found",
-            'description': f"queue {queue_name!r} is configured",
-        }, HTTPStatus.NOT_FOUND
+        return queue_not_found_response(queue_name)
 
     request_json = request.get_json(force=True, silent=True) or {}
     count = request_json.get('count', 1)
@@ -120,22 +126,6 @@ def receive(queue_name: Optional[str] = None) -> JSONResponse:
     except Exception as exc:  # pylint: disable=broad-except
         logger.error("failed to receive from queue", exc_info=exc)
         return {'error': "failed to receive from queue"}, HTTPStatus.INTERNAL_SERVER_ERROR
-
-
-@app.route('/info', methods=['GET'])
-@app.route('/queues/<queue_name>', methods=['GET'])
-@auth.login_required(role='send')
-def queue_schema(queue_name: Optional[str] = None) -> JSONResponse:
-    try:
-        queue = QUEUES[queue_name]
-    except KeyError:
-        # TODO: deduplicate "queue not found" error lines
-        return {
-            'error': "queue not found",
-            'description': f"queue {queue_name!r} is configured",
-        }, HTTPStatus.NOT_FOUND
-
-    return {'queue': queue.name, 'schema': queue.json_schema or {}}, HTTPStatus.OK
 
 
 @app.route('/health')
@@ -155,6 +145,14 @@ def verify_password(username: str, password: str) -> Optional[User]:
 @auth.get_user_roles
 def get_user_roles(user: User) -> list[str]:
     return user.permissions
+
+
+# TODO: raise Exception instead and convert it by Flask into JSON response
+def queue_not_found_response(queue_name: str) -> JSONResponse:
+    return {
+        'error': "queue not found",
+        'description': f"queue {queue_name!r} is not configured",
+    }, HTTPStatus.NOT_FOUND
 
 
 if __name__ == '__main__':
