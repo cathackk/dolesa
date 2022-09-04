@@ -10,7 +10,7 @@ from flask.logging import create_logger
 from flask_httpauth import HTTPBasicAuth
 from jsonschema.exceptions import ValidationError
 
-from dolesa.queueing import QUEUES
+from dolesa.queues import Queues
 from dolesa.users import User
 from dolesa.users import authenticate
 
@@ -18,7 +18,9 @@ app = Flask(__name__)
 auth = HTTPBasicAuth()
 logger = create_logger(app)
 
+QUEUES = Queues.load()
 
+# TODO: server config
 MAX_CONTENT_LENGTH = int(os.environ.get('MAX_CONTENT_LENGTH', 4096))
 
 
@@ -28,7 +30,10 @@ JSONResponse = tuple[dict[str, Any], int]
 @app.route('/queues', methods=['GET'])
 @auth.login_required(role='list')
 def queues() -> JSONResponse:
-    return {'queues': [q.name for q in QUEUES]}, HTTPStatus.OK
+    return {
+        'queues': [q.name for q in QUEUES],
+        'default_queue': QUEUES.default_queue.name,
+    }, HTTPStatus.OK
 
 
 @app.route('/send', methods=['POST'])

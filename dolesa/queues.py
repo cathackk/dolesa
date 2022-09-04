@@ -24,40 +24,6 @@ RABBITMQ_EXCHANGE = os.environ['RABBITMQ_EXCHANGE']
 RABBITMQ_TIMEOUT_SECONDS = int(os.environ.get('RABBITMQ_TIMEOUT_SECONDS', 5))
 
 
-class Queues:
-    def __init__(self, queues: Iterable['Queue']):
-        queues_list = list(queues)
-        if not queues_list:
-            queues_list = [Queue(name='default')]
-
-        self.queues_dict = {q.name: q for q in queues_list}
-        self.default_queue = queues_list[0]
-
-    @classmethod
-    def load(cls, definition_path: str = 'config/queues.yaml') -> 'Queues':
-        with open(definition_path) as file:
-            definition = yaml.safe_load(file)
-            return cls(Queue.from_config_item(item) for item in definition['queues'])
-
-    def __len__(self) -> int:
-        return len(self.queues_dict)
-
-    def __contains__(self, queue_name: str) -> bool:
-        return queue_name in self.queues_dict
-
-    def __getitem__(self, queue_name: Optional[str]) -> 'Queue':
-        if queue_name is None:
-            return self.default_queue
-
-        return self.queues_dict[queue_name]
-
-    def __iter__(self) -> Iterator['Queue']:
-        return iter(self.queues_dict.values())
-
-
-QUEUES = Queues.load()
-
-
 @dataclass(frozen=True)
 class Queue:
     name: str
@@ -159,3 +125,34 @@ class Queue:
     @property
     def _get_url(self) -> str:
         return f'http://{RABBITMQ_HOST}:{RABBITMQ_PORT}/api/queues/%2f/{self.name}/get'
+
+
+class Queues:
+    def __init__(self, queues: Iterable[Queue]):
+        queues_list = list(queues)
+        if not queues_list:
+            queues_list = [Queue(name='default')]
+
+        self.queues_dict = {q.name: q for q in queues_list}
+        self.default_queue = queues_list[0]
+
+    @classmethod
+    def load(cls, definition_path: str = 'config/queues.yaml') -> 'Queues':
+        with open(definition_path) as file:
+            definition = yaml.safe_load(file)
+            return cls(Queue.from_config_item(item) for item in definition['queues'])
+
+    def __len__(self) -> int:
+        return len(self.queues_dict)
+
+    def __contains__(self, queue_name: str) -> bool:
+        return queue_name in self.queues_dict
+
+    def __getitem__(self, queue_name: Optional[str]) -> Queue:
+        if queue_name is None:
+            return self.default_queue
+
+        return self.queues_dict[queue_name]
+
+    def __iter__(self) -> Iterator[Queue]:
+        return iter(self.queues_dict.values())
