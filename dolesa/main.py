@@ -22,42 +22,53 @@ logger = create_logger(app)
 MAX_CONTENT_LENGTH = int(os.environ.get('MAX_CONTENT_LENGTH', 4096))
 
 
+JSONResponse = tuple[dict[str, Any], int]
+
+
 @app.route('/queues', methods=['GET'])
 @auth.login_required(role='list')
-def queues() -> Any:
-    return {'queues': [q.name for q in QUEUES]}
-
-
-# TODO: errors as JSON
+def queues() -> JSONResponse:
+    return {'queues': [q.name for q in QUEUES]}, HTTPStatus.OK
 
 
 @app.route('/send', methods=['POST'])
 @app.route('/queues/<queue_name>/send', methods=['POST'])
 @auth.login_required(role='send')
-def send(queue_name: Optional[str] = None) -> Any:
+def send(queue_name: Optional[str] = None) -> JSONResponse:
     try:
         queue = QUEUES[queue_name]
     except KeyError:
-        return "not found", HTTPStatus.NOT_FOUND
+        return {
+            'error': "queue not found",
+            'description': f"queue {queue_name!r} is configured",
+        }, HTTPStatus.NOT_FOUND
 
     # TODO: refactor for readability
-    # TODO: JSON schema validation
 
     if not request.content_length:
-        return "no data given", HTTPStatus.BAD_REQUEST
+        return {'error': "no data"}, HTTPStatus.BAD_REQUEST
     if request.content_length > MAX_CONTENT_LENGTH:
-        return f"max content length is {MAX_CONTENT_LENGTH}", HTTPStatus.REQUEST_ENTITY_TOO_LARGE
+        return {
+            'error': "content too long",
+            'description': f"max content length is {MAX_CONTENT_LENGTH}",
+        }, HTTPStatus.REQUEST_ENTITY_TOO_LARGE
 
     request_json = request.get_json(force=True)
     if isinstance(request_json, list):
         try:
             messages = [dict(value) for value in request_json]
         except TypeError:
-            return "JSON list must contain objects only", HTTPStatus.UNPROCESSABLE_ENTITY
+            return {
+                'error': "wrong JSON format",
+                'description': "JSON list must contain only objects",
+            }, HTTPStatus.UNPROCESSABLE_ENTITY
     elif isinstance(request_json, dict):
         messages = [request_json]
     else:
-        return "JSON must be either dict or list", HTTPStatus.UNPROCESSABLE_ENTITY
+        return {
+            'error': "wrong JSON format",
+            'description': "JSON data must be either object or list",
+        }, HTTPStatus.UNPROCESSABLE_ENTITY
 
     try:
         routed = queue.send(
@@ -68,14 +79,17 @@ def send(queue_name: Optional[str] = None) -> Any:
 
     except ValidationError as exc:
         logger.error("validation failed", exc_info=exc)
-        return "invalid message", HTTPStatus.UNPROCESSABLE_ENTITY
+        return {
+            'error': "invalid message",
+            'description': exc.message,
+        }, HTTPStatus.UNPROCESSABLE_ENTITY
 
     except Exception as exc:  # pylint: disable=broad-except
         logger.error("routing failed", exc_info=exc)
-        return "routing failed", HTTPStatus.INTERNAL_SERVER_ERROR
+        return {'error': "routing failed"}, HTTPStatus.INTERNAL_SERVER_ERROR
 
     if not routed:
-        return "not routed", HTTPStatus.INTERNAL_SERVER_ERROR
+        return {'error': "not routed"}, HTTPStatus.INTERNAL_SERVER_ERROR
 
     return {"routed": len(messages)}, HTTPStatus.ACCEPTED
 
@@ -83,41 +97,46 @@ def send(queue_name: Optional[str] = None) -> Any:
 @app.route('/receive', methods=['POST'])
 @app.route('/queues/<queue_name>/receive', methods=['POST'])
 @auth.login_required(role='receive')
-def receive(queue_name: Optional[str] = None) -> Any:
+def receive(queue_name: Optional[str] = None) -> JSONResponse:
     try:
         queue = QUEUES[queue_name]
     except KeyError:
-        return "not found", HTTPStatus.NOT_FOUND
+        return {
+            'error': "queue not found",
+            'description': f"queue {queue_name!r} is configured",
+        }, HTTPStatus.NOT_FOUND
 
     request_json = request.get_json(force=True, silent=True) or {}
     count = request_json.get('count', 1)
 
     try:
-        return queue.receive(count)
+        return queue.receive(count), HTTPStatus.OK
 
     except Exception as exc:  # pylint: disable=broad-except
         logger.error("failed to receive from queue", exc_info=exc)
-        return "failed to receive from queue", HTTPStatus.INTERNAL_SERVER_ERROR
+        return {'error': "failed to receive from queue"}, HTTPStatus.INTERNAL_SERVER_ERROR
 
 
 @app.route('/info', methods=['GET'])
 @app.route('/queues/<queue_name>', methods=['GET'])
 @auth.login_required(role='send')
-def queue_schema(queue_name: Optional[str] = None) -> Any:
+def queue_schema(queue_name: Optional[str] = None) -> JSONResponse:
     try:
         queue = QUEUES[queue_name]
     except KeyError:
-        return "not found", HTTPStatus.NOT_FOUND
+        # TODO: deduplicate "queue not found" error lines
+        return {
+            'error': "queue not found",
+            'description': f"queue {queue_name!r} is configured",
+        }, HTTPStatus.NOT_FOUND
 
-    return {
-        'queue': queue.name,
-        'schema': queue.json_schema or {},
-    }
+    return {'queue': queue.name, 'schema': queue.json_schema or {}}, HTTPStatus.OK
 
 
 @app.route('/health')
-def health() -> Any:
-    return {"status": "running"}
+def health() -> JSONResponse:
+    # TODO: check queues as part of health check?
+    return {"status": "running"}, HTTPStatus.OK
 
 
 # TODO: POST /reset
