@@ -1,7 +1,7 @@
 # TODO
 
 ## features
-- [ ] JSON schema validation
+- [x] JSON schema validation
 - [ ] user permissions per queue
 - [ ] reset queue (`POST /queues/{q}/reset`?)
 - [x] multiple queues:
@@ -15,7 +15,7 @@
 ## QA
 - [ ] unit testing
 - [x] linters
-- [ ] black
+- [x] black
 
 
 ## CI
