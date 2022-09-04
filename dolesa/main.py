@@ -13,8 +13,6 @@ from jsonschema.exceptions import ValidationError
 from dolesa.queueing import QUEUES
 from dolesa.users import authenticate
 from dolesa.users import User
-from dolesa.queueing import receive_from_queue
-from dolesa.queueing import send_to_queue
 
 
 app = Flask(__name__)
@@ -66,8 +64,7 @@ def send(queue_name: Optional[str] = None) -> Any:
         return "JSON must be either dict or list", HTTPStatus.UNPROCESSABLE_ENTITY
 
     try:
-        routed = send_to_queue(
-            queue,
+        routed = queue.send(
             *messages,
             sender=auth.current_user(),
             timestamp=datetime.now(),
@@ -100,7 +97,7 @@ def receive(queue_name: Optional[str] = None) -> Any:
     count = request_json.get('count', 1)
 
     try:
-        return receive_from_queue(queue, count)
+        return queue.receive(count)
 
     except Exception as exc:  # pylint: disable=broad-except
         logger.error("failed to receive from queue", exc_info=exc)
