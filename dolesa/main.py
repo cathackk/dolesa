@@ -148,7 +148,7 @@ def get_user_roles(user: User) -> list[str]:
 
 
 # TODO: raise Exception instead and convert it by Flask into JSON response
-def queue_not_found_response(queue_name: str) -> JSONResponse:
+def queue_not_found_response(queue_name: Optional[str]) -> JSONResponse:
     return {
         'error': "queue not found",
         'description': f"queue {queue_name!r} is not configured",

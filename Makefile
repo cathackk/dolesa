@@ -16,7 +16,7 @@ black:
 checks: mypy pylint
 
 mypy:
-	mypy -p dolesa tests
+	mypy -p dolesa -p tests
 
 pylint:
 	pylint dolesa tests

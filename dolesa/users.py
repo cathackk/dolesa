@@ -1,6 +1,5 @@
-import os
-
 import hashlib
+import os
 import secrets
 import string
 from dataclasses import dataclass
@@ -149,7 +148,7 @@ def load_users(filename: str = 'config/users.yaml') -> dict[str, User]:
             users[ADMIN_USERNAME] = User(
                 username=ADMIN_USERNAME,
                 password_digest=digest_password(ADMIN_PASSWORD),
-                permissions=sorted(VALID_PERMISSIONS)
+                permissions=sorted(VALID_PERMISSIONS),
             )
 
         return users

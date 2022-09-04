@@ -7,7 +7,6 @@ RUN set -eux; \
     apt-get install -y --no-install-recommends \
         sudo \
         curl \
-        make \
         jq \
     	software-properties-common; \
     sudo add-apt-repository -y ppa:deadsnakes/ppa; \
@@ -24,8 +23,8 @@ WORKDIR $APP_HOME
 
 # install dependencies
 COPY requirements.txt .
-COPY Makefile .
-RUN make install
+RUN pip3.9 install --no-cache-dir --upgrade pip wheel setuptools; \
+	pip3.9 install --no-cache-dir --upgrade -r requirements.txt
 
 # copy local support code
 COPY scripts ./scripts/

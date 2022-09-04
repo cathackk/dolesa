@@ -1,10 +1,9 @@
-import random
-
 import os
+import random
 from http import HTTPStatus
+from typing import Optional
 
 import requests
-
 
 ADMIN_USERNAME = os.environ['DOLESA_ADMIN_USERNAME']
 ADMIN_PASSWORD = os.environ['DOLESA_ADMIN_PASSWORD']
@@ -12,7 +11,7 @@ ADMIN_PASSWORD = os.environ['DOLESA_ADMIN_PASSWORD']
 HOST = 'http://localhost:8080'
 
 
-def session(username: str = None, password: str = None) -> requests.Session:
+def session(username: Optional[str] = None, password: Optional[str] = None) -> requests.Session:
     sess = requests.Session()
     sess.auth = (username or ADMIN_USERNAME, password or ADMIN_PASSWORD)
     return sess
@@ -79,7 +78,7 @@ def test_send_receive__default_endpoint() -> None:
     assert response_receive.json()['remaining'] == 0
     received = response_receive.json()['received']
     assert len(received) == 1
-    msg, = received
+    (msg,) = received
     assert isinstance(msg.pop('ts'), int)
     assert msg == {
         'message': my_message,
@@ -101,7 +100,7 @@ def test_send_receive__explicit_endpoint() -> None:
     assert response_receive.json()['remaining'] == 0
     received = response_receive.json()['received']
     assert len(received) == 1
-    msg, = received
+    (msg,) = received
     assert isinstance(msg.pop('ts'), int)
     assert msg == {
         'message': my_message,
