@@ -1,0 +1,74 @@
+[tool.black]
+line-length = 100
+target_version = ["py39"]
+skip_string_normalization = true
+
+[tool.isort]
+profile = "black"
+force_single_line = true
+
+[tool.mypy]
+cache_dir = "/dev/null"
+ignore_missing_imports = true
+python_version = "3.9"
+plugins = "pydantic.mypy"
+# equivalent to --strict except for the modifications above:
+disallow_untyped_calls = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+warn_redundant_casts = true
+warn_return_any = true
+warn_unused_ignores = true
+warn_unused_configs = true
+no_implicit_optional = true
+
+[tool.pylint.basic]
+argument-naming-style = "snake_case"
+attr-naming-style = "snake_case"
+class-attribute-naming-style = "any"
+class-const-naming-style = "UPPER_CASE"
+class-naming-style = "PascalCase"
+const-naming-style = "UPPER_CASE"
+function-naming-style = "snake_case"
+inlinevar-naming-style = "any"
+method-naming-style = "snake_case"
+module-naming-style = "snake_case"
+variable-naming-style = "snake_case"
+
+[tool.pylint.design]
+max-args = 10
+max-attributes = 15
+max-bool-expr = 3
+max-branches = 12
+max-locals = 20
+max-parents = 7
+max-public-methods = 20
+max-returns = 10
+max-statements = 50
+min-public-methods = 2
+
+[tool.pylint.format]
+ignore-long-lines = "^\\s*(# )?<?https?://\\S+>?$"
+max-line-length = 100
+max-module-lines = 1000
+
+[tool.pylint."messages control"]
+confidence = ["HIGH", "CONTROL_FLOW", "INFERENCE", "INFERENCE_FAILURE", "UNDEFINED"]
+disable = [
+    "duplicate-code",
+    "missing-class-docstring",
+    "missing-function-docstring",
+    "missing-module-docstring",
+    "no-else-break",
+    "no-else-return",
+    "unbalanced-tuple-unpacking",
+    "unspecified-encoding",
+    "useless-else-on-loop"
+]
+
+[tool.pylint.miscellaneous]
+notes = ["FIXME"]
+
+[tool.pylint.refactoring]
+max-nested-blocks = 5

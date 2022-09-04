@@ -1,16 +1,13 @@
-import string
-
-from functools import lru_cache
-
 import hashlib
 import secrets
+import string
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import Optional
 
 import yaml
 
 from dolesa.exceptions import ConfigurationException
-
 
 MIN_PASSWORD_LENGTH = 8
 VALID_PERMISSIONS = frozenset(['send', 'receive', 'list'])
@@ -20,10 +17,7 @@ PASSWORD_HEXDIGEST_LENGTH = 64  # SHA-256
 @lru_cache()
 def load_users(filename: str = 'config/users.yaml') -> dict[str, 'User']:
     with open(filename) as file:
-        return {
-            (user := User.from_dict(d)).username: user
-            for d in yaml.safe_load(file)['users']
-        }
+        return {(user := User.from_dict(d)).username: user for d in yaml.safe_load(file)['users']}
 
 
 def digest_password(password_plain: str) -> str:
@@ -119,8 +113,8 @@ class User:
             password_digest = data.pop('password_digest').strip().lower()
             if len(password_digest) != PASSWORD_HEXDIGEST_LENGTH:
                 raise ConfigurationException(
-                    f'{username}: password digest must be exactly {PASSWORD_HEXDIGEST_LENGTH} '
-                    f'characters long'
+                    f'{username}: password digest must be '
+                    f'exactly {PASSWORD_HEXDIGEST_LENGTH} characters long'
                 )
             if set(password_digest) - set(string.hexdigits):
                 raise ConfigurationException(
@@ -138,9 +132,7 @@ class User:
                 )
             password_digest = digest_password(password_plain)
         else:
-            raise ConfigurationException(
-                f'{username}: no `password_digest` or `password_plain`'
-            )
+            raise ConfigurationException(f'{username}: no `password_digest` or `password_plain`')
 
         # permissions
         permissions = data.pop('permissions', None)

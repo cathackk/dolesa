@@ -11,9 +11,8 @@ from flask_httpauth import HTTPBasicAuth
 from jsonschema.exceptions import ValidationError
 
 from dolesa.queueing import QUEUES
-from dolesa.users import authenticate
 from dolesa.users import User
-
+from dolesa.users import authenticate
 
 app = Flask(__name__)
 auth = HTTPBasicAuth()
@@ -26,15 +25,12 @@ MAX_CONTENT_LENGTH = int(os.environ.get('MAX_CONTENT_LENGTH', 4096))
 @app.route('/queues', methods=['GET'])
 @auth.login_required(role='list')
 def queues() -> Any:
-    return {
-        'queues': [q.name for q in QUEUES]
-    }
+    return {'queues': [q.name for q in QUEUES]}
 
 
 # TODO: errors as JSON
 
 
-# pylint: disable=too-many-return-statements
 @app.route('/send', methods=['POST'])
 @app.route('/queues/<queue_name>/send', methods=['POST'])
 @auth.login_required(role='send')
@@ -74,7 +70,7 @@ def send(queue_name: Optional[str] = None) -> Any:
         logger.error("validation failed", exc_info=exc)
         return "invalid message", HTTPStatus.UNPROCESSABLE_ENTITY
 
-    except Exception as exc:   # pylint: disable=broad-except
+    except Exception as exc:  # pylint: disable=broad-except
         logger.error("routing failed", exc_info=exc)
         return "routing failed", HTTPStatus.INTERNAL_SERVER_ERROR
 

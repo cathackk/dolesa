@@ -1,21 +1,18 @@
-from typing import Any
-from typing import Iterator
-from typing import Iterable
-from typing import Optional
-
-from dataclasses import dataclass
-
 import json
 import logging
 import os
+from dataclasses import dataclass
 from datetime import datetime
+from typing import Any
+from typing import Iterable
+from typing import Iterator
+from typing import Optional
 
-from jsonschema import validate
 import requests
 import yaml
+from jsonschema import validate
 
 from dolesa.users import User
-
 
 logger = logging.getLogger(__name__)
 
@@ -40,10 +37,7 @@ class Queues:
     def load(cls, definition_path: str = 'config/queues.yaml') -> 'Queues':
         with open(definition_path) as file:
             definition = yaml.safe_load(file)
-            return cls(
-                Queue.from_config_item(item)
-                for item in definition['queues']
-            )
+            return cls(Queue.from_config_item(item) for item in definition['queues'])
 
     def __len__(self) -> int:
         return len(self.queues_dict)
@@ -75,7 +69,6 @@ class Queue:
 
     @classmethod
     def from_config_item(cls, config_item: dict) -> 'Queue':
-
         def load_json_schema(filename: Optional[str]) -> Optional[dict]:
             if not filename:
                 return None
@@ -93,11 +86,10 @@ class Queue:
         *messages: dict[str, Any],
         sender: User,
         timestamp: datetime,
-        skip_validation: bool = False
+        skip_validation: bool = False,
     ) -> bool:
         return all(
-            self.send_single(message, sender, timestamp, skip_validation)
-            for message in messages
+            self.send_single(message, sender, timestamp, skip_validation) for message in messages
         )
 
     def send_single(
@@ -114,7 +106,7 @@ class Queue:
             'queue': self.name,
             'message': message,
             'sender': sender.username,
-            'ts': int(timestamp.timestamp())
+            'ts': int(timestamp.timestamp()),
         }
 
         try:
@@ -161,7 +153,7 @@ class Queue:
         rabbit_msgs = response.json()
         return {
             'received': [json.loads(rabbit_msg['payload']) for rabbit_msg in rabbit_msgs],
-            'remaining': rabbit_msgs[-1]['message_count'] if rabbit_msgs else 0
+            'remaining': rabbit_msgs[-1]['message_count'] if rabbit_msgs else 0,
         }
 
     @property
