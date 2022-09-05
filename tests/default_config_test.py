@@ -7,8 +7,8 @@ import requests
 
 ADMIN_USERNAME = os.environ['DOLESA_ADMIN_USERNAME']
 ADMIN_PASSWORD = os.environ['DOLESA_ADMIN_PASSWORD']
-# TODO: load from env
-HOST = 'http://localhost:8080'
+PORT = os.environ.get('PORT', '8080')
+HOST = f'http://localhost:{PORT}/dolesa'
 
 
 def session(username: Optional[str] = None, password: Optional[str] = None) -> requests.Session:
