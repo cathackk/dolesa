@@ -5,6 +5,7 @@ install:
 install-dev: install
 	pip3.9 install --no-cache-dir --upgrade -r requirements-dev.txt
 
+
 format: isort black
 
 isort:
@@ -13,13 +14,15 @@ isort:
 black:
 	black dolesa tests
 
-checks: mypy pylint
+
+check: mypy pylint
 
 mypy:
 	mypy -p dolesa -p tests
 
 pylint:
 	pylint dolesa tests
+
 
 build-for-tests:
 	docker build . -t dolesa:test

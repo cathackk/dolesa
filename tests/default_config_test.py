@@ -66,7 +66,7 @@ def test_get_queue_info__wrong_queue_name() -> None:
 
 
 def test_send_receive__default_endpoint() -> None:
-    my_message = {'text': 'sending to default endpoint', 'num': random.randint(1, 1000)}
+    my_message = {'text': "sending to default endpoint", 'num': random.randint(1, 1000)}
 
     response_send = session().post(f'{HOST}/send', json=my_message)
     assert response_send.status_code == HTTPStatus.ACCEPTED
@@ -88,7 +88,7 @@ def test_send_receive__default_endpoint() -> None:
 
 
 def test_send_receive__explicit_endpoint() -> None:
-    my_message = {'text': 'sending to explicit endpoint', 'num': random.randint(1, 1000)}
+    my_message = {'text': "sending to explicit endpoint", 'num': random.randint(1, 1000)}
 
     response_send = session().post(f'{HOST}/queues/default/send', json=my_message)
     assert response_send.status_code == HTTPStatus.ACCEPTED
@@ -107,3 +107,52 @@ def test_send_receive__explicit_endpoint() -> None:
         'queue': 'default',
         'sender': ADMIN_USERNAME,
     }
+
+
+def test_send_receive__multiple() -> None:
+    # first there is nothing to receive
+    response_receive_0 = session().post(f'{HOST}/receive')
+    assert response_receive_0.status_code == HTTPStatus.OK
+    assert response_receive_0.json()['remaining'] == 0
+    assert response_receive_0.json()['received'] == []
+
+    # prepare 5 messages
+    messages = [{'text': f"my message no {index}"} for index in range(1, 6)]
+    assert len(messages) == 5
+
+    # -> send first 2 messages
+    response_send_1 = session().post(f'{HOST}/send', json=messages[:2])
+    assert response_send_1.status_code == HTTPStatus.ACCEPTED
+    assert response_send_1.json() == {'routed': 2}
+
+    # -> send the remaining 3 messages
+    response_send_2 = session().post(f'{HOST}/send', json=messages[2:])
+    assert response_send_2.status_code == HTTPStatus.ACCEPTED
+    assert response_send_2.json() == {'routed': 3}
+
+    # request 1 message -> receive 1
+    response_receive_1 = session().post(f'{HOST}/receive')
+    assert response_receive_1.status_code == HTTPStatus.OK
+    assert response_receive_1.json()['remaining'] == 4
+    assert len(response_receive_1.json()['received']) == 1
+    assert response_receive_1.json()['received'][0]['message'] == messages[0]
+
+    # request 3 messages -> receive 3
+    response_receive_2 = session().post(f'{HOST}/receive', json={'count': 3})
+    assert response_receive_2.status_code == HTTPStatus.OK
+    assert response_receive_2.json()['remaining'] == 1
+    assert len(response_receive_2.json()['received']) == 3
+    assert [m['message'] for m in response_receive_2.json()['received']] == messages[1:4]
+
+    # request 2 messages -> receive only 1
+    response_receive_3 = session().post(f'{HOST}/receive', json={'count': 2})
+    assert response_receive_3.status_code == HTTPStatus.OK
+    assert response_receive_3.json()['remaining'] == 0
+    assert len(response_receive_3.json()['received']) == 1
+    assert response_receive_3.json()['received'][0]['message'] == messages[4]
+
+    # request 1 message -> receive nothing
+    response_receive_4 = session().post(f'{HOST}/receive')
+    assert response_receive_4.status_code == HTTPStatus.OK
+    assert response_receive_4.json()['remaining'] == 0
+    assert response_receive_4.json()['received'] == []
